@@ -6,6 +6,7 @@ import (
 
 	"infinite-canvas/backend/internal/kernel"
 	"infinite-canvas/backend/internal/model"
+	"infinite-canvas/backend/internal/protocol"
 )
 
 const (
@@ -302,9 +303,9 @@ func HasExecutableVideoConfig(input map[string]any) bool {
 // ChannelAPIFormatForProtocol chooses auth/envelope format from the model
 // protocol. A system channel may host mixed protocols; the channel-level
 // APIFormat is only a fallback when protocol is empty.
-func ChannelAPIFormatForProtocol(channelDefault string, protocol model.ChannelInterfaceType) string {
-	switch protocol {
-	case model.ChannelInterfaceGeminiVeo, model.ChannelInterfaceGeminiImage:
+func ChannelAPIFormatForProtocol(channelDefault string, modelProtocol model.ChannelInterfaceType) string {
+	switch modelProtocol {
+	case model.ChannelInterfaceGeminiVeo, model.ChannelInterfaceGeminiImage, protocol.GeminiGenerateContentID:
 		return "gemini"
 	case model.ChannelInterfaceClaudeAPI:
 		return "claude"

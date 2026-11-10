@@ -32,7 +32,7 @@ func TestSelectModelInheritsCurrentReferenceTransport(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := referenceTransportModelHost(tc.current, tc.scope, true, true)
-			config := map[string]any{"model": "video", "interfaceType": "newapi-channel-2", "baseUrl": "https://selected.invalid/", "seed": "17", "referenceAssetOrigin": "frozen-origin"}
+			config := map[string]any{"model": "video", "interfaceType": "newapi-channel-2", "apiFormat": "openai", "baseUrl": "https://selected.invalid/", "seed": "17", "referenceAssetOrigin": "frozen-origin"}
 			if tc.newModel {
 				config["model"] = "old"
 			}

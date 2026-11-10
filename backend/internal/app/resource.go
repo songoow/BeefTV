@@ -8,7 +8,6 @@ import (
 
 	localasset "infinite-canvas/backend/internal/asset"
 	"infinite-canvas/backend/internal/assets"
-	"infinite-canvas/backend/internal/kernel"
 	"infinite-canvas/backend/internal/model"
 	"infinite-canvas/backend/internal/resource"
 )
@@ -62,4 +61,3 @@ func resourceFileExtension(fileName, mimeType, kind string) string              
 func imageDimensions(data []byte) (int, int)                                                             { return resource.ImageDimensions(data) }
 func normalizeResourceKind(kind, mimeType string) string                                                 { return localasset.NormalizeKind(kind, mimeType) }
 func normalizeSingleByteRange(value string) string                                                       { return localasset.NormalizeSingleByteRange(value) }
-func firstNonEmpty(values ...string) string                                                              { return kernel.FirstNonEmpty(values...) }
