@@ -26,24 +26,38 @@ func SelectModel(host CompileHost, n Node, recipe *Recipe) (bool, error) {
 			continue
 		}
 		old, _ := recipe.Request.Input["config"].(map[string]any)
+		previousConfig, _ := json.Marshal(old)
+		current := modelcatalog.LocalModelExecutionConfig(snapshot, candidate)
+		managed := beeftv.IsManagedChannel(candidate.ChannelID, stringValue(current["credentialRef"]), candidate.BaseURL)
+		wasManaged := beeftv.IsManagedChannel(stringValue(old["channelId"]), stringValue(old["credentialRef"]), stringValue(old["baseUrl"]))
 		recipe.ChannelID = candidate.ChannelID
-		if beeftv.IsManagedChannel(candidate.ChannelID, "", candidate.BaseURL) {
+		if managed {
 			recipe.ChannelID = "@beeftv"
 		}
-		if stringValue(old["model"]) == candidate.Model && stringValue(old["interfaceType"]) == candidate.Protocol && strings.TrimRight(stringValue(old["baseUrl"]), "/") == strings.TrimRight(candidate.BaseURL, "/") {
-			return false, nil
-		}
-		config := map[string]any{"model": candidate.Model, "interfaceType": candidate.Protocol, "baseUrl": candidate.BaseURL, "capabilityConfig": candidate.CapabilityConfig}
-		for _, key := range []string{"size", "quality", "vquality", "videoSeconds", "seed", "generateAudio", "watermark", "count"} {
-			if v, ok := old[key]; ok {
-				config[key] = v
+		sameModel := managed == wasManaged && stringValue(old["model"]) == candidate.Model && stringValue(old["interfaceType"]) == candidate.Protocol && strings.TrimRight(stringValue(old["baseUrl"]), "/") == strings.TrimRight(candidate.BaseURL, "/")
+		config := old
+		if !sameModel {
+			config = current
+			// The template pins a connection identity; execution reads its secrets.
+			for _, key := range []string{"apiKey", "secretKey", "headers"} {
+				delete(config, key)
 			}
+			for _, key := range []string{"size", "quality", "vquality", "videoSeconds", "seed", "videoGenerateAudio", "videoWatermark", "count"} {
+				if v, ok := old[key]; ok {
+					config[key] = v
+				}
+			}
+			recipe.Request.Model = candidate.Model
+			recipe.Request.Provider = ""
+			recipe.Request.LogicalModelID = ""
+		} else {
+			// An explicit save refreshes the complete profile and its version
+			// together; execution only refreshes the connection credentials.
+			modelcatalog.ApplyLocalModelProfile(config, candidate)
 		}
+		currentConfig, _ := json.Marshal(config)
 		recipe.Request.Input["config"] = config
-		recipe.Request.Model = candidate.Model
-		recipe.Request.Provider = ""
-		recipe.Request.LogicalModelID = ""
-		return true, nil
+		return !sameModel || string(previousConfig) != string(currentConfig), nil
 	}
 	return false, BadRequest("请选择当前已启用、类型匹配的模型")
 }

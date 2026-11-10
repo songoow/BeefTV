@@ -341,6 +341,9 @@ func TestChannelAPIFormatForProtocol(t *testing.T) {
 	if got := ChannelAPIFormatForProtocol("legacy", model.ChannelInterfaceGeminiImage); got != "gemini" {
 		t.Fatalf("gemini protocol = %q", got)
 	}
+	if got := ChannelAPIFormatForProtocol("openai", "gemini-generate-content"); got != "gemini" {
+		t.Fatalf("Gemini text plugin protocol = %q", got)
+	}
 	if got := ChannelAPIFormatForProtocol("legacy", model.ChannelInterfaceClaudeAPI); got != "claude" {
 		t.Fatalf("claude protocol = %q", got)
 	}

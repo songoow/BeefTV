@@ -77,9 +77,16 @@ func ProcessCanvasMedia(
 		if format == "" {
 			return localasset.RecoveredArtifact{}, fmt.Errorf("此素材格式暂不支持自动处理")
 		}
-		params, ext, mime, err := cw.MediaCommand(input.Node, source.Width, source.Height)
-		if err != nil {
+		var params []string
+		ext, mime := ".png", "image/png"
+		if err := cw.ValidateOperation(input.Node); err != nil {
 			return localasset.RecoveredArtifact{}, err
+		}
+		if !cw.IsLastVideoFrame(input.Node) {
+			params, ext, mime, err = cw.MediaCommand(input.Node, source.Width, source.Height)
+			if err != nil {
+				return localasset.RecoveredArtifact{}, err
+			}
 		}
 		bin, err := mediatools.ResolveFFmpeg()
 		if err != nil {
@@ -110,9 +117,14 @@ func ProcessCanvasMedia(
 		if err = UpdateTimelineTaskProgress(repo, task, "本地媒体处理中", 20); err != nil {
 			return localasset.RecoveredArtifact{}, err
 		}
-		cmd := exec.CommandContext(ctx, bin, args...)
-		mediatools.HideConsole(cmd)
-		if err = cmd.Run(); err != nil {
+		if cw.IsLastVideoFrame(input.Node) {
+			err = mediatools.ExtractLastVideoFrame(ctx, sourcePath, format, output)
+		} else {
+			cmd := exec.CommandContext(ctx, bin, args...)
+			mediatools.HideConsole(cmd)
+			err = cmd.Run()
+		}
+		if err != nil {
 			return localasset.RecoveredArtifact{}, fmt.Errorf("媒体处理失败，请检查源文件、裁切范围或音轨：%w", err)
 		}
 		artifact, err = os.Open(output)
@@ -144,11 +156,14 @@ func ProcessCanvasMedia(
 		}
 		return localasset.RecoveredArtifact{Kind: input.Node.MediaType, FileName: "canvas-process" + ext, MimeType: mime, Size: info.Size(), Width: facts.Width, Height: facts.Height, DurationMs: facts.DurationMs, Body: artifact}, nil
 	})
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		if errors.Is(ctxErr, context.DeadlineExceeded) {
+			return FailTimelineTask(repo, logInfo, task, "处理超时", TaskTimeoutMessage(task.Type))
+		}
+		return ctxErr
+	}
 	if err != nil {
 		return FailTimelineTask(repo, logInfo, task, "处理失败", err.Error())
-	}
-	if ctx.Err() != nil {
-		return ctx.Err()
 	}
 	value := map[string]any{"resourceId": resource.ID, "mimeType": resource.MimeType, "width": resource.Width, "height": resource.Height, "durationMs": resource.DurationMs}
 	payload, err := json.Marshal(map[string]any{input.Node.MediaType: value, "resourceId": resource.ID})

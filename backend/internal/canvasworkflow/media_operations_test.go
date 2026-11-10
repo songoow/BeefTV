@@ -37,3 +37,34 @@ func TestWorkflowMediaOperationsRejectInvalidConfig(t *testing.T) {
 		t.Fatalf("video crop: %v %s %s %v", args, ext, mime, err)
 	}
 }
+
+func TestWorkflowFrameModesValidateWithoutDurationGuess(t *testing.T) {
+	for _, config := range []map[string]any{
+		{"seconds": 1.5},
+		{"mode": "timestamp", "seconds": 1.5},
+		{"mode": "last"},
+		{"mode": "last", "seconds": 43201.0},
+	} {
+		n := Node{ID: "frame", Role: "operation", OperationID: "video.frame", OperationVersion: 1, MediaType: "image", Config: config}
+		if err := ValidateOperation(n); err != nil {
+			t.Fatalf("valid frame selection rejected: %v", err)
+		}
+		if IsLastVideoFrame(n) {
+			if _, _, _, err := MediaCommand(n, 64, 48); err == nil {
+				t.Fatal("last-frame selection silently fell back to a timestamp command")
+			}
+		} else {
+			args, _, _, err := MediaCommand(n, 64, 48)
+			if err != nil || !reflect.DeepEqual(args, []string{"-ss", "1.500", "-frames:v", "1", "-an"}) {
+				t.Fatalf("timestamp behavior changed: %v %v", args, err)
+			}
+		}
+	}
+	for _, config := range []map[string]any{
+		{"mode": "unknown"}, {"mode": 1.0}, {"mode": "timestamp", "seconds": -1.0},
+	} {
+		if err := ValidateOperation(Node{ID: "frame", Role: "operation", OperationID: "video.frame", OperationVersion: 1, MediaType: "image", Config: config}); err == nil {
+			t.Fatalf("invalid frame selection accepted: %v", config)
+		}
+	}
+}

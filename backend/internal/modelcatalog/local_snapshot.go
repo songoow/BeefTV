@@ -16,6 +16,7 @@ type LocalChannelModel struct {
 	DisplayName              string
 	Capability               string
 	Protocol                 string
+	ReferenceMediaTransport  map[string]string
 	CapabilityConfig         any
 	ImageCapabilitiesVersion *string
 	VideoCapabilitiesVersion *string
@@ -31,18 +32,20 @@ func ParseLocalChannelModels(body []byte) []LocalChannelModel {
 		Channels []struct {
 			ID            string   `json:"id"`
 			BaseURL       string   `json:"baseUrl"`
+			Scope         string   `json:"scope"`
 			Enabled       *bool    `json:"enabled"`
 			Models        []string `json:"models"`
 			ModelProfiles []struct {
-				Model                    string          `json:"model"`
-				DisplayName              string          `json:"displayName"`
-				Capability               string          `json:"capability"`
-				Protocol                 string          `json:"protocol"`
-				CapabilityConfig         json.RawMessage `json:"capabilityConfig"`
-				ImageCapabilitiesVersion *string         `json:"imageCapabilitiesVersion"`
-				VideoCapabilitiesVersion *string         `json:"videoCapabilitiesVersion"`
-				VideoPricing             json.RawMessage `json:"videoPricing"`
-				Pricing                  json.RawMessage `json:"pricing"`
+				Model                    string            `json:"model"`
+				DisplayName              string            `json:"displayName"`
+				Capability               string            `json:"capability"`
+				Protocol                 string            `json:"protocol"`
+				ReferenceMediaTransport  map[string]string `json:"referenceMediaTransport"`
+				CapabilityConfig         json.RawMessage   `json:"capabilityConfig"`
+				ImageCapabilitiesVersion *string           `json:"imageCapabilitiesVersion"`
+				VideoCapabilitiesVersion *string           `json:"videoCapabilitiesVersion"`
+				VideoPricing             json.RawMessage   `json:"videoPricing"`
+				Pricing                  json.RawMessage   `json:"pricing"`
 			} `json:"modelProfiles"`
 		} `json:"channels"`
 	}
@@ -65,6 +68,9 @@ func ParseLocalChannelModels(body []byte) []LocalChannelModel {
 				Pricing:                  profile.Pricing,
 				VideoCapabilitiesVersion: profile.VideoCapabilitiesVersion,
 				ImageCapabilitiesVersion: profile.ImageCapabilitiesVersion,
+			}
+			if channel.Scope != "system" {
+				item.ReferenceMediaTransport = profile.ReferenceMediaTransport
 			}
 			if len(profile.CapabilityConfig) > 0 {
 				var value any

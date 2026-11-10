@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 
-	"infinite-canvas/backend/internal/beeftv"
 	"infinite-canvas/backend/internal/modelcatalog"
 	"infinite-canvas/backend/internal/operations"
 	"infinite-canvas/backend/internal/providerpreset"
@@ -16,47 +15,14 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 		return nil, err
 	}
 	channelID, modelID := modelcatalog.SplitModelKey(target.ModelKey)
-	var snapshot struct {
-		Channels []struct {
-			ID            string `json:"id"`
-			BaseURL       string `json:"baseUrl"`
-			APIKey        string `json:"apiKey"`
-			CredentialRef string `json:"credentialRef"`
-			APIFormat     string `json:"apiFormat"`
-			InterfaceType string `json:"interfaceType"`
-		} `json:"channels"`
-	}
+	var snapshot map[string]any
 	if err = json.Unmarshal(body, &snapshot); err != nil {
 		return nil, err
 	}
-	config := map[string]any{}
-	found := false
-	for _, channel := range snapshot.Channels {
-		if channel.ID == channelID {
-			found = true
-			config["baseUrl"], config["apiKey"], config["apiFormat"] = channel.BaseURL, channel.APIKey, channel.APIFormat
-			config["interfaceType"] = channel.InterfaceType
-			if channel.CredentialRef != "" {
-				config["credentialRef"] = channel.CredentialRef
-			}
-			if channel.ID == beeftv.ChannelID {
-				config["channelId"] = channel.ID
-			}
-			break
-		}
-	}
-	if !found {
-		return nil, operations.PreconditionFailed("generation_model_unavailable", "制作模型已不可用", nil)
-	}
-	config["model"] = modelID
+	var config map[string]any
 	for _, profile := range modelcatalog.ParseLocalChannelModels(body) {
 		if profile.ChannelID == channelID && profile.Model == modelID && profile.Enabled {
-			if profile.Protocol != "" {
-				config["interfaceType"] = profile.Protocol
-			}
-			if profile.CapabilityConfig != nil {
-				config["capabilityConfig"] = profile.CapabilityConfig
-			}
+			config = modelcatalog.LocalModelExecutionConfig(snapshot, profile)
 			if target.Kind == "video" {
 				if _, protocol, ok := providerpreset.HostedBeefTVVideoProfile(profile.BaseURL, modelID); ok {
 					config["interfaceType"] = protocol
@@ -64,6 +30,9 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 			}
 			break
 		}
+	}
+	if config == nil {
+		return nil, operations.PreconditionFailed("generation_model_unavailable", "制作模型已不可用", nil)
 	}
 	for key, value := range target.Parameters {
 		switch key {
@@ -73,7 +42,7 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 			key = "videoGenerateAudio"
 		case "watermark":
 			key = "videoWatermark"
-		case "videoStartFrameNodeId", "videoEndFrameNodeId", "videoMiddleFrameNodeId":
+		case "videoStartFrameNodeId", "videoEndFrameNodeId", "videoMiddleFrameNodeId", "referenceMediaTransport":
 			continue
 		}
 		config[key] = value

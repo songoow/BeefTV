@@ -14,7 +14,7 @@ func MediaOperations() []Operation {
 		{ID: "image.crop", Version: 1, Name: "裁切", OutputType: "image", Inputs: []InputPort{{"image", "图片", "image", true, false}}, Fields: crop},
 		{ID: "image.resize", Version: 1, Name: "调整尺寸", OutputType: "image", Inputs: []InputPort{{"image", "图片", "image", true, false}}, Fields: []Field{{Key: "longEdge", Label: "长边像素", Type: "number"}, {Key: "algorithm", Label: "插值算法", Type: "select", Options: []FieldOption{{Label: "高质量", Value: "high"}, {Label: "双线性", Value: "bilinear"}, {Label: "最近邻", Value: "nearest"}}}}},
 		{ID: "video.crop", Version: 1, Name: "画面裁切", OutputType: "video", Inputs: []InputPort{{"video", "视频", "video", true, false}}, Fields: crop},
-		{ID: "video.frame", Version: 1, Name: "关键帧截取", OutputType: "image", Inputs: []InputPort{{"video", "视频", "video", true, false}}, Fields: []Field{{Key: "seconds", Label: "截帧秒数", Type: "number"}}},
+		{ID: "video.frame", Version: 1, Name: "关键帧截取", OutputType: "image", Inputs: []InputPort{{"video", "视频", "video", true, false}}, Fields: []Field{{Key: "mode", Label: "截帧方式", Type: "select", Options: []FieldOption{{Label: "指定时间", Value: "timestamp"}, {Label: "实际末帧", Value: "last"}}}, {Key: "seconds", Label: "截帧秒数（指定时间）", Type: "number"}}},
 		{ID: "video.audio", Version: 1, Name: "音视频分离", OutputType: "audio", Inputs: []InputPort{{"video", "视频", "video", true, false}}, Fields: []Field{}},
 	}
 }
@@ -26,6 +26,10 @@ func IsMediaOperation(id string) bool {
 		}
 	}
 	return false
+}
+
+func IsLastVideoFrame(n Node) bool {
+	return n.OperationID == "video.frame" && n.Config["mode"] == "last"
 }
 
 func ValidateMediaConfig(n Node) error {
@@ -44,6 +48,12 @@ func ValidateMediaConfig(n Node) error {
 			return fmt.Errorf("不支持的图片插值算法")
 		}
 	case "video.frame":
+		if mode, ok := n.Config["mode"]; ok && mode != "timestamp" && mode != "last" {
+			return fmt.Errorf("截帧方式必须为指定时间或实际末帧")
+		}
+		if IsLastVideoFrame(n) {
+			return nil
+		}
 		value := operationNumber(n.Config["seconds"])
 		if value < 0 || value > 43200 {
 			return fmt.Errorf("截帧时间无效")
@@ -112,6 +122,10 @@ func MediaCommand(n Node, width, height int) (args []string, extension, mime str
 		filters = append(filters, fmt.Sprintf("scale=%d:%d:flags=%s", w, h, algorithm))
 		args = []string{"-vf", strings.Join(filters, ",")}
 	case "video.frame":
+		if IsLastVideoFrame(n) {
+			err = fmt.Errorf("实际末帧需要解码源视频，不能使用固定时间截帧")
+			return
+		}
 		args = []string{"-ss", strconv.FormatFloat(operationNumber(n.Config["seconds"]), 'f', 3, 64)}
 	case "video.audio":
 		return []string{"-vn", "-c:a", "aac"}, ".m4a", "audio/mp4", nil

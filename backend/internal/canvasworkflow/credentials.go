@@ -178,12 +178,15 @@ func RefreshCredentials(host CompileHost, input map[string]any, channelID string
 	if !found {
 		return BadRequest("工作流使用的模型已从渠道移除，请恢复模型或重新保存工作流")
 	}
-	for _, key := range []string{"apiKey", "secretKey", "headers", "baseUrl", "referenceAssetOrigin"} {
+	for _, key := range []string{"apiKey", "secretKey", "headers", "baseUrl", "referenceAssetOrigin", "credentialRef"} {
 		if value, ok := current[key]; ok {
 			config[key] = value
 		} else {
 			delete(config, key)
 		}
+	}
+	for _, key := range []string{"channelId", "managedAccountId", "managedTokenId"} {
+		delete(config, key)
 	}
 	return nil
 }

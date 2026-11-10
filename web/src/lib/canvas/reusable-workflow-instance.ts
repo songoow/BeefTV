@@ -9,11 +9,13 @@ export type WorkflowInstanceAction = "start" | "retry" | "cancel";
 
 export function workflowSlotTitle(node: WorkflowNode, definition: WorkflowDefinition): string {
     const title = node.title.trim();
+    const shortTitle = title.length <= 24 && !/\.(mp4|mov|png|jpe?g|webp|mp3)(?:\s|$)|帮我|生成一个|生成一张/.test(title);
+    if (node.role === "input" && definition.presentationVersion && shortTitle) return title;
     if (workflowOperationId(node) === "video.depth") return "深度捕捉结果";
     if (node.role === "input" && node.mediaType === "video" && /深度/.test(title)) return "深度参考";
     if (node.role === "input" && node.mediaType === "video" && /剪辑片段|动作|motion/i.test(title)) return "动作参考";
     // Existing templates used raw prompts and filenames as titles. New short labels are kept verbatim.
-    if (title.length <= 24 && !/\.(mp4|mov|png|jpe?g|webp|mp3)(?:\s|$)|帮我|生成一个|生成一张/.test(title)) return title;
+    if (shortTitle) return title;
     if (isWorkflowOperation(node)) return definition.outputNodeIds.includes(node.id) ? "处理结果" : "处理步骤";
     if (/三视图/.test(title)) return "人物三视图";
     if (/人物|角色|人像|女生|男生|女孩|男孩/.test(title)) return "人物参考";

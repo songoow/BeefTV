@@ -30,13 +30,15 @@ func (s *Service) CreateCanvasMediaTask(user string, node cw.Node, resourceID, o
 	if localasset.NormalizeKind(resource.Kind, resource.MimeType) != op.Inputs[0].MediaType {
 		return nil, kernel.BadAuthRequest("输入素材类型不匹配")
 	}
-	if node.OperationID == "video.frame" {
+	if node.OperationID == "video.frame" && !cw.IsLastVideoFrame(node) {
 		if seconds, ok := node.Config["seconds"].(float64); ok && resource.DurationMs > 0 && seconds*1000 >= float64(resource.DurationMs) {
 			return nil, kernel.BadAuthRequest("截帧时间需小于视频时长")
 		}
 	}
-	if _, _, _, err = cw.MediaCommand(node, resource.Width, resource.Height); err != nil {
-		return nil, kernel.BadAuthRequest(err.Error())
+	if !cw.IsLastVideoFrame(node) {
+		if _, _, _, err = cw.MediaCommand(node, resource.Width, resource.Height); err != nil {
+			return nil, kernel.BadAuthRequest(err.Error())
+		}
 	}
 	input, err := marshalLocalExecutorInput(CanvasMediaInput{Node: node, ResourceID: resourceID})
 	if err != nil {

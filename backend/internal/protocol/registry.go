@@ -7,6 +7,8 @@ import (
 	"sync"
 )
 
+const GeminiGenerateContentID = "gemini-generate-content"
+
 type Registry struct {
 	mu       sync.RWMutex
 	adapters map[string]Adapter
@@ -110,7 +112,7 @@ func ResolvableIDs(metadata Metadata) []string {
 	}
 	add(metadata.ID)
 	// Older BeefTV catalogs stored the package name instead of its provider ID.
-	if strings.TrimSpace(metadata.ID) == "gemini-generate-content" {
+	if strings.TrimSpace(metadata.ID) == GeminiGenerateContentID {
 		add("google-gemini-generate-content")
 	}
 	for _, alias := range metadata.LegacyAliases {
