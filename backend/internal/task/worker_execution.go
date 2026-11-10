@@ -156,14 +156,14 @@ func ProcessCanvasMedia(
 		}
 		return localasset.RecoveredArtifact{Kind: input.Node.MediaType, FileName: "canvas-process" + ext, MimeType: mime, Size: info.Size(), Width: facts.Width, Height: facts.Height, DurationMs: facts.DurationMs, Body: artifact}, nil
 	})
-	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		if errors.Is(ctxErr, context.DeadlineExceeded) {
+			return FailTimelineTask(repo, logInfo, task, "处理超时", TaskTimeoutMessage(task.Type))
 		}
-		return FailTimelineTask(repo, logInfo, task, "处理失败", err.Error())
+		return ctxErr
 	}
-	if ctx.Err() != nil {
-		return ctx.Err()
+	if err != nil {
+		return FailTimelineTask(repo, logInfo, task, "处理失败", err.Error())
 	}
 	value := map[string]any{"resourceId": resource.ID, "mimeType": resource.MimeType, "width": resource.Width, "height": resource.Height, "durationMs": resource.DurationMs}
 	payload, err := json.Marshal(map[string]any{input.Node.MediaType: value, "resourceId": resource.ID})
