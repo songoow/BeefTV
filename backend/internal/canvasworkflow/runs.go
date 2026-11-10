@@ -848,7 +848,9 @@ func (r *Runs) Retry(user, id string) (Run, error) {
 			if e != nil {
 				return Run{}, e
 			}
-			if task.Status != model.TaskStatusQueued && task.Status != model.TaskStatusRunning {
+			// Task-list recovery may have completed the original task while this
+			// run was stopped. Reconcile its output instead of resubmitting it.
+			if task.Status != model.TaskStatusQueued && task.Status != model.TaskStatusRunning && task.Status != model.TaskStatusSucceeded {
 				if task, e = r.host.RetryStep(row, step.NodeID, task); e != nil {
 					return Run{}, e
 				}
