@@ -30,20 +30,29 @@ func SelectModel(host CompileHost, n Node, recipe *Recipe) (bool, error) {
 		if beeftv.IsManagedChannel(candidate.ChannelID, "", candidate.BaseURL) {
 			recipe.ChannelID = "@beeftv"
 		}
-		if stringValue(old["model"]) == candidate.Model && stringValue(old["interfaceType"]) == candidate.Protocol && strings.TrimRight(stringValue(old["baseUrl"]), "/") == strings.TrimRight(candidate.BaseURL, "/") {
-			return false, nil
-		}
-		config := map[string]any{"model": candidate.Model, "interfaceType": candidate.Protocol, "baseUrl": candidate.BaseURL, "capabilityConfig": candidate.CapabilityConfig}
-		for _, key := range []string{"size", "quality", "vquality", "videoSeconds", "seed", "generateAudio", "watermark", "count"} {
-			if v, ok := old[key]; ok {
-				config[key] = v
+		sameModel := stringValue(old["model"]) == candidate.Model && stringValue(old["interfaceType"]) == candidate.Protocol && strings.TrimRight(stringValue(old["baseUrl"]), "/") == strings.TrimRight(candidate.BaseURL, "/")
+		config := old
+		if !sameModel {
+			config = map[string]any{"model": candidate.Model, "interfaceType": candidate.Protocol, "baseUrl": candidate.BaseURL, "capabilityConfig": candidate.CapabilityConfig}
+			for _, key := range []string{"size", "quality", "vquality", "videoSeconds", "seed", "generateAudio", "watermark", "count"} {
+				if v, ok := old[key]; ok {
+					config[key] = v
+				}
 			}
+			recipe.Request.Model = candidate.Model
+			recipe.Request.Provider = ""
+			recipe.Request.LogicalModelID = ""
 		}
+		// Re-saving the same model must pick up its current transport settings;
+		// credential refresh at execution time leaves this recipe value frozen.
+		previousTransport, _ := json.Marshal(config["referenceMediaTransport"])
+		delete(config, "referenceMediaTransport")
+		if len(candidate.ReferenceMediaTransport) > 0 {
+			config["referenceMediaTransport"] = candidate.ReferenceMediaTransport
+		}
+		currentTransport, _ := json.Marshal(config["referenceMediaTransport"])
 		recipe.Request.Input["config"] = config
-		recipe.Request.Model = candidate.Model
-		recipe.Request.Provider = ""
-		recipe.Request.LogicalModelID = ""
-		return true, nil
+		return !sameModel || string(previousTransport) != string(currentTransport), nil
 	}
 	return false, BadRequest("请选择当前已启用、类型匹配的模型")
 }

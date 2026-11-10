@@ -29,11 +29,9 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 	if err = json.Unmarshal(body, &snapshot); err != nil {
 		return nil, err
 	}
-	config := map[string]any{}
-	found := false
+	config := map[string]any{"model": modelID}
 	for _, channel := range snapshot.Channels {
 		if channel.ID == channelID {
-			found = true
 			config["baseUrl"], config["apiKey"], config["apiFormat"] = channel.BaseURL, channel.APIKey, channel.APIFormat
 			config["interfaceType"] = channel.InterfaceType
 			if channel.CredentialRef != "" {
@@ -45,14 +43,13 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 			break
 		}
 	}
-	if !found {
-		return nil, operations.PreconditionFailed("generation_model_unavailable", "制作模型已不可用", nil)
-	}
-	config["model"] = modelID
+	found := false
 	for _, profile := range modelcatalog.ParseLocalChannelModels(body) {
 		if profile.ChannelID == channelID && profile.Model == modelID && profile.Enabled {
-			if profile.Protocol != "" {
-				config["interfaceType"] = profile.Protocol
+			found = true
+			config["interfaceType"] = firstNonEmpty(profile.Protocol, stringValue(config["interfaceType"]))
+			if len(profile.ReferenceMediaTransport) > 0 {
+				config["referenceMediaTransport"] = profile.ReferenceMediaTransport
 			}
 			if profile.CapabilityConfig != nil {
 				config["capabilityConfig"] = profile.CapabilityConfig
@@ -65,6 +62,9 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 			break
 		}
 	}
+	if !found {
+		return nil, operations.PreconditionFailed("generation_model_unavailable", "制作模型已不可用", nil)
+	}
 	for key, value := range target.Parameters {
 		switch key {
 		case "seconds":
@@ -73,7 +73,7 @@ func (s *Service) assistantGenerationConfig(target operations.GenerationTarget) 
 			key = "videoGenerateAudio"
 		case "watermark":
 			key = "videoWatermark"
-		case "videoStartFrameNodeId", "videoEndFrameNodeId", "videoMiddleFrameNodeId":
+		case "videoStartFrameNodeId", "videoEndFrameNodeId", "videoMiddleFrameNodeId", "referenceMediaTransport":
 			continue
 		}
 		config[key] = value
