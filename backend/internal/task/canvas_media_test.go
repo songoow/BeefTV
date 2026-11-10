@@ -1,10 +1,36 @@
 package task
 
 import (
+	"encoding/json"
 	cw "infinite-canvas/backend/internal/canvasworkflow"
 	"infinite-canvas/backend/internal/model"
 	"testing"
 )
+
+func TestLastFrameAdmissionDoesNotUseRecordedDuration(t *testing.T) {
+	svc, _, media, _ := newSpecializedMem(nil)
+	source := readyVideo("source")
+	source.Kind, source.MimeType = "video", "video/mp4"
+	source.DurationMs = 1
+	media.put("owner", source)
+	node := cw.Node{ID: "last", Role: "operation", OperationID: "video.frame", OperationVersion: 1, MediaType: "image", Config: map[string]any{"mode": "last", "seconds": 11.0}}
+	created, err := svc.CreateCanvasMediaTask("owner", node, source.ID, "last-once")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input CanvasMediaInput
+	if err := json.Unmarshal([]byte(created.InputJSON), &input); err != nil || !cw.IsLastVideoFrame(input.Node) || input.ResourceID != source.ID {
+		t.Fatalf("last-frame selection was not frozen: %+v %v", input, err)
+	}
+	replay, err := svc.CreateCanvasMediaTask("owner", node, source.ID, "last-once")
+	if err != nil || replay.ID != created.ID {
+		t.Fatalf("last-frame replay: %+v %v", replay, err)
+	}
+	node.Config["mode"] = "timestamp"
+	if _, err := svc.CreateCanvasMediaTask("owner", node, source.ID, "outside-time"); err == nil {
+		t.Fatal("timestamp beyond recorded duration accepted")
+	}
+}
 
 func TestCanvasMediaAdmissionIsLocalOwnedAndIdempotent(t *testing.T) {
 	svc, _, media, _ := newSpecializedMem(nil)

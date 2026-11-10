@@ -100,6 +100,9 @@ func Compile(host CompileHost, user string, d Definition, existing *model.Canvas
 	if e != nil {
 		return CompileResult{}, BadRequest(e.Error())
 	}
+	if e = validateLastFrameRuntime(order); e != nil {
+		return CompileResult{}, e
+	}
 	recipes := RecipesByNode{}
 	previous := RecipesByNode{}
 	previousNodes := map[string]Node{}

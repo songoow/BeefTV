@@ -281,6 +281,9 @@ func (r *Runs) Start(user, id string, req RunRequest) (Run, error) {
 	if e != nil {
 		return Run{}, e
 	}
+	if e = validateLastFrameRuntime(order); e != nil {
+		return Run{}, e
+	}
 	knownInputs := map[string]bool{}
 	run := Run{Status: "queued", Steps: []Step{}, Outputs: []Output{}}
 	refs := map[string]bool{}
