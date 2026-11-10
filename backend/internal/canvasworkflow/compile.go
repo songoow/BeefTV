@@ -245,13 +245,6 @@ func Compile(host CompileHost, user string, d Definition, existing *model.Canvas
 				}
 			}
 		}
-		if n.VideoDurationSourceNodeID != "" {
-			config, _ := input["config"].(map[string]any)
-			if config["videoSeconds"] == nil {
-				return CompileResult{}, BadRequest("节点 " + n.Title + " 的来源模型未声明时长参数，不能跟随参考视频")
-			}
-			recipe.VideoDurationSourceNodeID = n.VideoDurationSourceNodeID
-		}
 		parameterEdited := applyVideoReferenceMode(n, input) || modelEdited
 		promptEdited := false
 		for _, key := range []string{"prompt", "size", "quality", "vquality", "videoSeconds", "seed"} {
@@ -282,6 +275,13 @@ func Compile(host CompileHost, user string, d Definition, existing *model.Canvas
 					}
 				}
 			}
+		}
+		if n.VideoDurationSourceNodeID != "" {
+			config, _ := input["config"].(map[string]any)
+			if config["videoSeconds"] == nil {
+				return CompileResult{}, BadRequest("节点 " + n.Title + " 的来源模型未声明时长参数，不能跟随参考视频")
+			}
+			recipe.VideoDurationSourceNodeID = n.VideoDurationSourceNodeID
 		}
 		if recipe.ChannelID == "" {
 			recipe.ChannelID, e = ChannelID(host, input, recipe.Request.LogicalModelID)
