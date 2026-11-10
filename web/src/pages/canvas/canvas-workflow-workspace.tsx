@@ -5,6 +5,7 @@ import { AppDrawer } from "@/components/ui/product/app-drawer";
 import { compileCanvasWorkflow } from "@/lib/canvas/reusable-workflow";
 import { deleteCanvasWorkflow, getWorkflowEditor, listWorkflowOperations, listCanvasWorkflows, saveCanvasWorkflow, type CanvasWorkflow, type WorkflowDefinition, type WorkflowOperation } from "@/services/api/canvas-workflows";
 import { abstractWorkflowDefinition } from "@/lib/canvas/workflow-editor";
+import { continuousVideoStarters, createContinuousVideoWorkflow, type ContinuousVideoStage } from "@/lib/canvas/continuous-video-workflow";
 import type { CanvasConnection, CanvasNodeData } from "@/types/canvas";
 import { CanvasWorkflowSave } from "./canvas-workflow-save";
 import { CanvasWorkflowEditor } from "./canvas-workflow-editor";
@@ -83,12 +84,13 @@ export const CanvasWorkflowWorkspace = forwardRef<CanvasWorkflowsHandle, {
         } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "打开工作流设定失败"); }
         finally { if (alive.current) setOpeningEditor(undefined); }
     };
-    const create = async () => {
+    const create = async (stage?: ContinuousVideoStage) => {
         if (readOnly || openingEditor) return;
         setOpeningEditor("new");
         try {
             const { operations } = await listWorkflowOperations();
-            if (alive.current) { setEditing({ operations, workflow: { id: "", name: "新工作流", description: "", createdAt: "", updatedAt: "", revision: 1, definition: { version: 1, nodes: [], edges: [], outputNodeIds: [] } } }); setLibraryOpen(false); }
+            const draft: Pick<CanvasWorkflow, "name" | "description" | "definition"> = stage ? createContinuousVideoWorkflow(stage, operations) : { name: "新工作流", description: "", definition: { version: 1, nodes: [], edges: [], outputNodeIds: [] } };
+            if (alive.current) { setEditing({ operations, workflow: { id: "", createdAt: "", updatedAt: "", revision: 1, ...draft } }); setLibraryOpen(false); }
         } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "无法创建工作流"); }
         finally { if (alive.current) setOpeningEditor(undefined); }
     };
@@ -102,6 +104,9 @@ export const CanvasWorkflowWorkspace = forwardRef<CanvasWorkflowsHandle, {
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 pt-2">
             {error ? <Alert type="error" title={error} showIcon /> : null}
             {!readOnly ? <Button block type="text" className="!h-9 !rounded-lg !bg-muted hover:!bg-accent" icon={<Plus className="size-4" />} onClick={() => void create()} disabled={Boolean(openingEditor)} loading={openingEditor === "new"}>新建工作流</Button> : null}
+            {!readOnly ? <Dropdown trigger={["click"]} menu={{ items: continuousVideoStarters.map(starter => ({ key: starter.stage, label: starter.name, onClick: () => void create(starter.stage) })) }}>
+                <Button block icon={<Workflow className="size-4" />} disabled={Boolean(openingEditor)}>使用双段视频模板</Button>
+            </Dropdown> : null}
             <div className="flex flex-col gap-2" aria-busy={loading}>
                 {loading && !workflows.length ? <div className="grid min-h-32 place-items-center"><Spin size="small" /></div> : workflows.length ? workflows.map(workflow => <article key={workflow.id} className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 transition-colors hover:bg-muted motion-reduce:transition-none" aria-label={workflow.name}>
                     <Workflow className="size-5 shrink-0 text-muted-foreground" aria-hidden />

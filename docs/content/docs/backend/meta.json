@@ -5,6 +5,9 @@
   "pages": [
     "local-development",
     "external-agents",
+    "agent-reference-transport",
+    "continuous-video-workflow",
+    "video-frame-extraction",
     "beeftv-cli",
     "http-api",
     "storyboard-operations",

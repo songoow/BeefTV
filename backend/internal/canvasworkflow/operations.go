@@ -60,7 +60,7 @@ func Operations() []Operation {
 		if strings.HasPrefix(out[i].ID, "generate.") {
 			out[i].Fields = append([]Field{{Key: "modelOption", Label: "模型", Type: "select"}}, out[i].Fields...)
 			if out[i].ID == "generate.video" {
-				out[i].Fields = append(out[i].Fields, Field{Key: "vquality", Label: "清晰度", Type: "select"})
+				out[i].Fields = append(out[i].Fields, Field{Key: "vquality", Label: "清晰度", Type: "select"}, Field{Key: "videoEditOperation", Label: "素材使用方式", Type: "select", Options: []FieldOption{{Label: "自动匹配素材", Value: ""}, {Label: "参考素材（不固定首尾帧）", Value: "reference_to_video"}}})
 			}
 		}
 		if name, ok := names[out[i].ID]; ok {
@@ -116,6 +116,9 @@ func ValidateOperation(n Node) error {
 		if start < 0 || end <= start {
 			return fmt.Errorf("节点 %s 裁剪结束时间必须大于开始时间", n.ID)
 		}
+	}
+	if value, exists := n.Config["videoEditOperation"]; exists && value != "" && value != "reference_to_video" {
+		return fmt.Errorf("节点 %s 的素材使用方式无效", n.ID)
 	}
 	if strings.HasSuffix(op.ID, ".ai-upscale") {
 		_, err := UpscaleRequest(n)

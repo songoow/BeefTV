@@ -20,6 +20,7 @@ func EditorDefinition(d Definition, recipes RecipesByNode) Definition {
 			continue
 		}
 		recipe := recipes[n.ID]
+		referenceMode, referenceModeExplicit := n.Config["videoEditOperation"]
 		n.Config = map[string]any{}
 		for _, key := range []string{"prompt", "size", "quality", "vquality", "videoSeconds", "seed"} {
 			value, ok := recipe.Request.Input[key]
@@ -46,6 +47,14 @@ func EditorDefinition(d Definition, recipes RecipesByNode) Definition {
 				case string, float64, int, bool:
 					n.Config[key] = value
 				}
+			}
+		}
+		if n.OperationID == "generate.video" {
+			metadata, _ := recipe.Request.Input["metadata"].(map[string]any)
+			if metadata["videoEditOperation"] == "reference_to_video" && stringValue(metadata["videoDraftTaskId"]) == "" {
+				n.Config["videoEditOperation"] = "reference_to_video"
+			} else if referenceModeExplicit && referenceMode == "" {
+				n.Config["videoEditOperation"] = ""
 			}
 		}
 		config, _ := recipe.Request.Input["config"].(map[string]any)

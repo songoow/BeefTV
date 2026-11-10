@@ -252,7 +252,7 @@ func Compile(host CompileHost, user string, d Definition, existing *model.Canvas
 			}
 			recipe.VideoDurationSourceNodeID = n.VideoDurationSourceNodeID
 		}
-		parameterEdited := modelEdited
+		parameterEdited := applyVideoReferenceMode(n, input) || modelEdited
 		promptEdited := false
 		for _, key := range []string{"prompt", "size", "quality", "vquality", "videoSeconds", "seed"} {
 			if value, ok := n.Config[key]; ok {
