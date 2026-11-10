@@ -98,37 +98,7 @@ func mapDomainError(err error) error {
 	}
 	var appErr *kernel.AppError
 	if errors.As(err, &appErr) {
-		reason := string(appErr.Reason)
-		switch appErr.Status {
-		case http.StatusNotFound:
-			if reason == "" || reason == string(kernel.ReasonNotFound) {
-				reason = "not_found"
-			}
-			return NotFound(reason, appErr.Message)
-		case http.StatusConflict:
-			if reason == "" || reason == string(kernel.ReasonConflict) {
-				reason = "stale_revision"
-			}
-			return Conflict(reason, appErr.Message, nil)
-		case http.StatusPreconditionFailed:
-			if reason == "" {
-				reason = "precondition_failed"
-			}
-			return PreconditionFailed(reason, appErr.Message, nil)
-		case http.StatusForbidden:
-			if reason == "" {
-				reason = "permission_denied"
-			}
-			return PermissionDenied(reason, appErr.Message)
-		case http.StatusBadRequest:
-			if appErr.Reason == kernel.ReasonUnsupportedField {
-				return InvalidArg(string(kernel.ReasonUnsupportedField), appErr.Message)
-			}
-			if reason == "" {
-				reason = "invalid_request"
-			}
-			return InvalidArg(reason, appErr.Message)
-		}
+		return AsError(err)
 	}
 	var conflicter interface{ IsConflict() bool }
 	if errors.As(err, &conflicter) && conflicter.IsConflict() {

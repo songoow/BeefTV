@@ -46,6 +46,10 @@ func TestExternalGenerationInheritsReferenceTransportBeforeAdmission(t *testing.
 				t.Fatal(dbErr)
 			}
 			if tc.blocked {
+				public := operations.AsError(err)
+				if public == nil || public.Code != operations.CodeInvalidArgument || public.Reason != "reference_media_requires_url" || operations.HTTPStatus(public.Code) != 400 || public.Details["requiredReferences"] == nil {
+					t.Fatalf("public operation lost actionable media validation: %+v", public)
+				}
 				var transportErr *kernel.AppError
 				if !errors.As(err, &transportErr) || transportErr.Reason != "reference_media_requires_url" || len(tasks) != 0 {
 					t.Fatalf("URL policy must reject local references before admission: tasks=%d err=%v", len(tasks), err)
